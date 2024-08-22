@@ -20,27 +20,36 @@ app.get('/domain/:name', async (req: Request, res: Response) => {
     const { name } = req.params;
     const response = await getDomainInfo(name);
 
-    // Create a new parser instance
-    const parser: Parser = new xml2js.Parser({ explicitArray: false });
+    const parser = new xml2js.Parser({ explicitArray: false });
+    
+    const result = await parser.parseStringPromise(response.data);
 
-    // Parse the XML string into JSON
-    parser.parseString(response.data, (err: Error | null, result: any) => {
-      if (err) {
-        res.status(500).json({ error: 'Error parsing XML response' });
-        return;
+    const apiResponse = result.ApiResponse;
+    
+    if (apiResponse.Errors) {
+      const error = apiResponse.Errors._;
+      if (error === `Tld for ${name} is not found`) {
+        return res.status(400).send("TLD is not supported.");
       }
-      // Send formatted JSON response
-      let real_result = result.ApiResponse.CommandResponse.DomainCheckResult.$.Available;
+      return res.status(400).json({ error });
+    }
 
-      if (real_result === "true") {
-          res.send("Domain is available");
-      } else {
-          res.send("Domain is unavailable");
-      }
+    const domainCheckResult = apiResponse.CommandResponse.DomainCheckResult;
+    
+    if (!domainCheckResult || typeof domainCheckResult.$ !== 'object') {
+      return res.status(500).json({ error: 'Unexpected API response structure' });
+    }
 
+    const isAvailable = domainCheckResult.$.Available === 'true';
+    
+    res.json({
+      domain: name,
+      available: isAvailable,
+      message: isAvailable ? "Domain is available!" : "Domain is unavailable!"
     });
+
   } catch (error) {
-    console.error(error);
+    console.error('Error checking domain:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
