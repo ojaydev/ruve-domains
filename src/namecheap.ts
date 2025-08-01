@@ -15,7 +15,7 @@ export const getDomainInfo = async (domain: string): Promise<AxiosResponse<any>>
     ApiKey: apiSecret,
     UserName: apiKey,
     Command: 'namecheap.domains.check',
-    ClientIp: '102.91.4.85',
+    ClientIp: '',
     DomainList: domain,
   };
 
